@@ -1,5 +1,6 @@
 {
   "name": "spotify-now-playing-api",
+  "type": "module",
   "private": true,
   "dependencies": {}
 }

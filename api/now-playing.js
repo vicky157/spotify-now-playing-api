@@ -1,14 +1,13 @@
-const CLIENT_ID = process.env.SPOTIFY_CLIENT_ID;
-const CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET;
-const REFRESH_TOKEN = process.env.SPOTIFY_REFRESH_TOKEN;
-
 const TOKEN_ENDPOINT = 'https://accounts.spotify.com/api/token';
 const NOW_PLAYING_ENDPOINT = 'https://api.spotify.com/v1/me/player/currently-playing';
 const RECENTLY_PLAYED_ENDPOINT = 'https://api.spotify.com/v1/me/player/recently-played?limit=1';
 
-const basic = Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString('base64');
-
 async function getAccessToken() {
+  const clientId = process.env.SPOTIFY_CLIENT_ID;
+  const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
+  const refreshToken = process.env.SPOTIFY_REFRESH_TOKEN;
+  const basic = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+
   const response = await fetch(TOKEN_ENDPOINT, {
     method: 'POST',
     headers: {
@@ -17,11 +16,15 @@ async function getAccessToken() {
     },
     body: new URLSearchParams({
       grant_type: 'refresh_token',
-      refresh_token: REFRESH_TOKEN,
+      refresh_token: refreshToken,
     }),
   });
 
-  return response.json();
+  const data = await response.json();
+  if (!data.access_token) {
+    throw new Error('Failed to get access token: ' + JSON.stringify(data));
+  }
+  return data.access_token;
 }
 
 export default async function handler(req, res) {
@@ -30,15 +33,15 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { access_token } = await getAccessToken();
+    const accessToken = await getAccessToken();
 
     const nowPlayingRes = await fetch(NOW_PLAYING_ENDPOINT, {
-      headers: { Authorization: `Bearer ${access_token}` },
+      headers: { Authorization: `Bearer ${accessToken}` },
     });
 
-    if (nowPlayingRes.status === 204 || nowPlayingRes.status > 400) {
+    if (nowPlayingRes.status === 204 || nowPlayingRes.status >= 400) {
       const recentRes = await fetch(RECENTLY_PLAYED_ENDPOINT, {
-        headers: { Authorization: `Bearer ${access_token}` },
+        headers: { Authorization: `Bearer ${accessToken}` },
       });
 
       if (!recentRes.ok) {
